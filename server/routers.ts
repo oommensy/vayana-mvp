@@ -238,7 +238,8 @@ const eventsRouter = router({
   getRsvps: publicProcedure
     .input(z.object({ eventId: z.number() }))
     .query(async ({ input }) => {
-      return getEventRsvps(input.eventId);
+      // Do not expose attendees and their identities to unauthenticated visitors.
+      throw new TRPCError({ code: "FORBIDDEN", message: "Attendee lists are private" });
     }),
 
   getMyRsvp: protectedProcedure
@@ -261,6 +262,14 @@ const eventsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      if (input.clubId !== undefined) {
+        const club = await getClubById(input.clubId);
+        if (!club) throw new TRPCError({ code: "NOT_FOUND", message: "Club not found" });
+        const membership = await getClubMember(input.clubId, ctx.user.id);
+        if (!membership || membership.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Only club admins may create club events" });
+        }
+      }
       const eventId = await createEvent({
         ...input,
         eventDate: new Date(input.eventDate),

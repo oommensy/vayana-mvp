@@ -1,10 +1,9 @@
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
-import { CalendarDays, ChevronLeft, ExternalLink, MapPin, Users, Video } from "lucide-react";
+import { CalendarDays, ChevronLeft, ExternalLink, MapPin, Video } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getLoginUrl } from "@/const";
@@ -17,12 +16,10 @@ export default function EventDetail() {
   const utils = trpc.useUtils();
 
   const { data: event, isLoading } = trpc.events.getById.useQuery({ id: eventId });
-  const { data: rsvps } = trpc.events.getRsvps.useQuery({ eventId });
   const { data: myRsvp } = trpc.events.getMyRsvp.useQuery({ eventId }, { enabled: isAuthenticated });
 
   const rsvpMutation = trpc.events.rsvp.useMutation({
     onSuccess: () => {
-      utils.events.getRsvps.invalidate({ eventId });
       utils.events.getMyRsvp.invalidate({ eventId });
       toast.success(lang === "ml" ? "RSVP അപ്ഡേറ്റ് ചെയ്തു" : "RSVP updated!");
     },
@@ -51,8 +48,6 @@ export default function EventDetail() {
   }
 
   const date = new Date(event.eventDate);
-  const goingCount = rsvps?.filter((r) => r.status === "going").length ?? 0;
-  const maybeCount = rsvps?.filter((r) => r.status === "maybe").length ?? 0;
 
   const rsvpButtons = [
     { status: "going" as const, label: t("rsvpGoing"), color: "bg-green-50 text-green-700 border-green-200 hover:bg-green-100" },
@@ -196,38 +191,16 @@ export default function EventDetail() {
             )}
           </div>
 
-          {/* Attendees */}
+          {/* RSVP privacy notice */}
           <div className="bg-white rounded-2xl border border-border shadow-sm p-5">
-            <h2 className={cn("font-serif font-semibold text-base text-foreground mb-1", lang === "ml" && "font-malayalam")}>
-              {t("attendees")}
+            <h2 className="font-serif font-semibold text-base text-foreground mb-2">
+              {lang === "ml" ? "സ്വകാര്യത" : "Attendee privacy"}
             </h2>
-            <p className="text-xs text-muted-foreground mb-4">
-              {goingCount} {lang === "ml" ? "പോകുന്നു" : "going"} · {maybeCount} {lang === "ml" ? "ഒരുപക്ഷേ" : "maybe"}
+            <p className="text-sm text-muted-foreground">
+              {lang === "ml"
+                ? "പങ്കെടുക്കുന്നവരുടെ വിവരങ്ങൾ പൊതുവായി പ്രദർശിപ്പിക്കുന്നില്ല."
+                : "Attendee identities and RSVP details are not displayed publicly."}
             </p>
-            {rsvps && rsvps.filter((r) => r.status === "going").length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {rsvps.filter((r) => r.status === "going").slice(0, 12).map((r) => (
-                  <Avatar key={r.id} className="w-8 h-8 border-2 border-white shadow-sm">
-                    <AvatarImage src={r.user?.avatarUrl ?? undefined} />
-                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                      {r.user?.name?.charAt(0)?.toUpperCase() ?? "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                ))}
-                {rsvps.filter((r) => r.status === "going").length > 12 && (
-                  <div className="w-8 h-8 rounded-full bg-secondary border-2 border-white flex items-center justify-center text-xs text-muted-foreground font-medium">
-                    +{rsvps.filter((r) => r.status === "going").length - 12}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Users className="w-4 h-4" />
-                <p className={cn("text-sm", lang === "ml" && "font-malayalam")}>
-                  {lang === "ml" ? "ഇതുവരെ ആരും RSVP ചെയ്തിട്ടില്ല" : "No RSVPs yet — be the first!"}
-                </p>
-              </div>
-            )}
           </div>
         </div>
       </div>
